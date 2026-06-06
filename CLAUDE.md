@@ -4,7 +4,7 @@ FastAPI backend for SuperBattle — DC character battle story generator. Current
 
 ## Status: Stub complete, integration phase next
 
-All 3 endpoints work and return realistic stub data. 30 pytest tests pass. Ready to wire real data sources.
+All 4 endpoints work and return realistic stub data. 33 pytest tests pass. Ready to wire real data sources.
 
 ## Run locally
 
@@ -36,6 +36,7 @@ pytest
 | GET | `/api/characters/popular` | 4 stub DC characters |
 | GET | `/api/characters/search?q=` | filtered stub results |
 | POST | `/api/battle` | 8-sentence story, winner, scores, teams |
+| GET | `/api/stats` | `{"battles_cached": 2847, "characters_loaded": 203}` |
 
 ## File structure
 
@@ -43,17 +44,19 @@ pytest
 app/
   config.py          # pydantic-settings; reads .env
   main.py            # FastAPI app factory, CORS, router registration
-  models.py          # Character, BattleRequest, BattleResponse, HealthResponse
+  models.py          # Character, BattleRequest, BattleResponse, HealthResponse, StatsResponse
   routers/
     health.py
     characters.py
     battle.py
+    stats.py         # GET /api/stats — hardcoded stub; real Supabase COUNT in integration phase
   services/
     characters.py    # STUB_CHARACTERS list (4 DC chars with real stat values)
     battle.py        # compute_score(), make_matchup_key(), run_battle_stub()
     supabase.py      # returns None until credentials set (stub guard)
 conftest.py          # pytest fixture: TestClient at repo root (not tests/)
-tests/               # 30 tests across 6 files
+tests/               # 33 tests across 7 files
+  test_stats.py      # 3 tests: 200, required int fields, positive values
 seed.py              # stub seed script (no-op until integration phase)
 ```
 
@@ -64,6 +67,7 @@ seed.py              # stub seed script (no-op until integration phase)
 - CORS `allow_origins` is read from `settings.frontend_url` (defaults to `http://localhost:3000`)
 - `run_battle_stub()` always returns Team A wins: Batman(335) + Superman(579) = 914 vs Joker(221) + Wonder Woman(528) = 749
 - Score = sum of all 6 stats (intelligence + strength + speed + durability + power + combat) per character
+- `GET /api/stats` returns hardcoded `battles_cached: 2847, characters_loaded: 203` — real Supabase COUNT queries in integration phase
 
 ## Environment variables (.env)
 
@@ -84,4 +88,5 @@ All optional in stub mode. Copy `.env.example` to `.env` to start.
 2. **Characters endpoints**: replace `STUB_CHARACTERS` with Supabase queries in `routers/characters.py`
 3. **Battle endpoint**: replace `run_battle_stub()` with real logic — query Supabase for characters by ID, call Groq for 8-sentence story, cache result in Supabase by `make_matchup_key()`
 4. **Groq**: add story narration using `groq` SDK (already in `GROQ_API_KEY` setting)
-5. **Docker**: test `docker build` on server — Dockerfile is written but not tested locally
+5. **Stats endpoint**: replace hardcoded values in `routers/stats.py` with real `SELECT COUNT(*)` queries against Supabase `battles` and `characters` tables
+6. **Docker**: test `docker build` on server — Dockerfile is written but not tested locally
