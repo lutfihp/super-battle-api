@@ -31,3 +31,8 @@ class BattleResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class StatsResponse(BaseModel):
+    battles_cached: int
+    characters_loaded: int

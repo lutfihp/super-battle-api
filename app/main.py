@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health, characters, battle
+from app.routers import health, characters, battle, stats
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(characters.router, prefix="/api")
     app.include_router(battle.router, prefix="/api")
+    app.include_router(stats.router, prefix="/api")
 
     return app
 
