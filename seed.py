@@ -68,6 +68,11 @@ def fetch_comic_vine_description(name: str, api_key: str) -> str | None:
         return None
 
 
+def fetch_existing_ids(db) -> set[int]:
+    result = db.table("characters").select("id").execute()
+    return {row["id"] for row in (result.data or [])}
+
+
 def reset_all(db) -> None:
     print("Resetting all rows via truncate_all RPC...")
     try:
@@ -82,6 +87,10 @@ def reset_all(db) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed SuperBattle database")
     parser.add_argument("--reset", action="store_true", help="Wipe all rows before seeding")
+    parser.add_argument(
+        "--limit", type=int, default=0,
+        help="Max Comic Vine API calls per run (use 190 to stay under the 200/hour cap). Default: no limit.",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -97,22 +106,47 @@ def main() -> None:
     chars = fetch_superhero_characters()
     total = len(chars)
 
+    existing_ids = fetch_existing_ids(db)
+    print(f"  → {len(existing_ids)} already in DB, will skip them")
+
     cv_enabled = bool(settings.comicvine_api_key)
-    print(f"Seeding {total} characters (Comic Vine enrichment: {'on' if cv_enabled else 'off'})...")
+    print(f"Seeding up to {total} characters (Comic Vine: {'on' if cv_enabled else 'off'}, limit: {args.limit or 'none'})...")
+
+    cv_calls = 0
+    seeded = 0
+    skipped_existing = 0
+    skipped_no_cv = 0
 
     for i, c in enumerate(chars, 1):
+        char_id = int(c["id"])
         name = c["name"]
-        stats = c["powerstats"]
-        bio = c.get("biography") or {}
-        images = c.get("images") or {}
+
+        if char_id in existing_ids:
+            skipped_existing += 1
+            print(f"  [{i}/{total}] {name} — already in DB, skipping")
+            continue
+
+        if args.limit and cv_calls >= args.limit:
+            print(f"\nReached Comic Vine limit ({args.limit}). Run again in 1 hour to continue.")
+            break
 
         description = None
         if cv_enabled:
             description = fetch_comic_vine_description(name, settings.comicvine_api_key)
-            time.sleep(0.5)
+            cv_calls += 1
+            time.sleep(1.0)
+
+        if not description:
+            skipped_no_cv += 1
+            print(f"  [{i}/{total}] {name} — no Comic Vine description, skipping")
+            continue
+
+        stats = c["powerstats"]
+        bio = c.get("biography") or {}
+        images = c.get("images") or {}
 
         row = {
-            "id": int(c["id"]),
+            "id": char_id,
             "name": name,
             "publisher": bio.get("publisher"),
             "alignment": bio.get("alignment"),
@@ -127,10 +161,10 @@ def main() -> None:
         }
 
         db.table("characters").upsert(row, on_conflict="id").execute()
-        status = "OK" if description else "no Comic Vine result"
-        print(f"  [{i}/{total}] {name} — {status}")
+        seeded += 1
+        print(f"  [{i}/{total}] {name} — OK")
 
-    print(f"\nDone. {total} characters seeded.")
+    print(f"\nDone. {seeded} seeded, {skipped_existing} skipped (already in DB), {skipped_no_cv} skipped (no Comic Vine description).")
 
 
 if __name__ == "__main__":
