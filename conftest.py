@@ -63,9 +63,12 @@ def mock_services(mocker):
         "app.routers.characters.search_characters",
         side_effect=lambda q: [c for c in STUB_CHARACTERS if q.lower() in c.name.lower()],
     )
-    # Battle router still calls run_battle_stub until Task 8
     mocker.patch(
-        "app.routers.battle.run_battle_stub",
+        "app.routers.battle.get_characters_by_ids",
+        side_effect=lambda ids: [c for c in STUB_CHARACTERS if c.id in ids],
+    )
+    mocker.patch(
+        "app.routers.battle.run_battle",
         return_value=STUB_BATTLE,
     )
 
