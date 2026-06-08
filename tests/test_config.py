@@ -2,7 +2,8 @@ from app.config import Settings, get_settings
 
 
 def test_settings_has_correct_defaults():
-    settings = Settings()
+    # Use _env_file=None to skip loading .env so we test actual default values
+    settings = Settings(_env_file=None)
     assert settings.frontend_url == "http://localhost:3000"
     assert settings.superhero_api_key == ""
     assert settings.groq_api_key == ""

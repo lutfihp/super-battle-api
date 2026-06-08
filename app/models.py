@@ -13,6 +13,7 @@ class Character(BaseModel):
     power: int
     combat: int
     powers_text: str
+    description: str | None = None
 
 
 class BattleRequest(BaseModel):
@@ -27,6 +28,7 @@ class BattleResponse(BaseModel):
     score_b: int
     team_a: list[Character]
     team_b: list[Character]
+    cached: bool = False
 
 
 class HealthResponse(BaseModel):

@@ -55,3 +55,17 @@ def test_battle_response_valid():
 def test_health_response_valid():
     h = HealthResponse(status="ok")
     assert h.status == "ok"
+
+
+def test_character_description_is_optional():
+    c = Character(**_make_character())
+    assert c.description is None
+
+
+def test_battle_response_has_cached_field():
+    char = Character(**_make_character())
+    r = BattleResponse(
+        story=["s"] * 8, winner="A", score_a=1, score_b=0,
+        team_a=[char], team_b=[char],
+    )
+    assert r.cached is False
