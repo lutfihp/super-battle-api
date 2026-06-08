@@ -1,65 +1,64 @@
 from app.models import Character
+from app.services.supabase import get_supabase_client
 
-STUB_CHARACTERS: list[Character] = [
-    Character(
-        id="70",
-        name="Batman",
-        alignment="good",
-        image_url="https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/sm/70.jpg",
-        intelligence=100,
-        strength=26,
-        speed=27,
-        durability=47,
-        power=35,
-        combat=100,
-        powers_text="Martial Arts, Stealth, Gadgetry, Detective Genius",
-    ),
-    Character(
-        id="644",
-        name="Superman",
-        alignment="good",
-        image_url="https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/sm/644.jpg",
-        intelligence=94,
-        strength=100,
-        speed=100,
-        durability=100,
-        power=100,
-        combat=85,
-        powers_text="Flight, Super Strength, Heat Vision, Invulnerability, Super Speed",
-    ),
-    Character(
-        id="370",
-        name="Joker",
-        alignment="bad",
-        image_url="https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/sm/370.jpg",
-        intelligence=90,
-        strength=10,
-        speed=12,
-        durability=32,
-        power=35,
-        combat=42,
-        powers_text="Unpredictability, Toxin Immunity, Genius-level Intellect, Chemical Weapons",
-    ),
-    Character(
-        id="720",
-        name="Wonder Woman",
-        alignment="good",
-        image_url="https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/sm/720.jpg",
-        intelligence=88,
-        strength=100,
-        speed=79,
-        durability=80,
-        power=80,
-        combat=101,
-        powers_text="Super Strength, Flight, Lasso of Truth, Combat Mastery, Godlike Durability",
-    ),
-]
+
+def rows_to_characters(rows: list[dict]) -> list[Character]:
+    return [
+        Character(
+            id=str(row["id"]),
+            name=row["name"],
+            alignment=row.get("alignment") or "good",
+            image_url=row.get("image_url") or "",
+            intelligence=row.get("intelligence") or 0,
+            strength=row.get("strength") or 0,
+            speed=row.get("speed") or 0,
+            durability=row.get("durability") or 0,
+            power=row.get("power") or 0,
+            combat=row.get("combat") or 0,
+            powers_text=row.get("description") or "",
+            description=row.get("description"),
+        )
+        for row in rows
+    ]
 
 
 def get_popular_characters() -> list[Character]:
-    return STUB_CHARACTERS
+    db = get_supabase_client()
+    if db is None:
+        return []
+    result = (
+        db.table("characters")
+        .select("*")
+        .order("intelligence", desc=True)
+        .limit(20)
+        .execute()
+    )
+    return rows_to_characters(result.data)
 
 
 def search_characters(q: str) -> list[Character]:
-    q_lower = q.lower()
-    return [c for c in STUB_CHARACTERS if q_lower in c.name.lower()]
+    db = get_supabase_client()
+    if db is None:
+        return []
+    result = (
+        db.table("characters")
+        .select("*")
+        .ilike("name", f"%{q}%")
+        .limit(20)
+        .execute()
+    )
+    return rows_to_characters(result.data)
+
+
+def get_characters_by_ids(ids: list[str]) -> list[Character]:
+    db = get_supabase_client()
+    if db is None:
+        return []
+    int_ids = [int(i) for i in ids]
+    result = (
+        db.table("characters")
+        .select("*")
+        .in_("id", int_ids)
+        .execute()
+    )
+    return rows_to_characters(result.data)
