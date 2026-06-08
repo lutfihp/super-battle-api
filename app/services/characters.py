@@ -22,6 +22,18 @@ def rows_to_characters(rows: list[dict]) -> list[Character]:
     ]
 
 
+POPULAR_IDS = [
+    # Marvel Heroes
+    620, 346, 149, 717,
+    # Marvel Villains
+    655, 222, 423, 299,
+    # DC Heroes
+    70, 720, 263, 38,
+    # DC Villains
+    204, 405, 309, 60,
+]
+
+
 def get_popular_characters() -> list[Character]:
     db = get_supabase_client()
     if db is None:
@@ -29,8 +41,7 @@ def get_popular_characters() -> list[Character]:
     result = (
         db.table("characters")
         .select("*")
-        .order("intelligence", desc=True)
-        .limit(20)
+        .in_("id", POPULAR_IDS)
         .execute()
     )
     return rows_to_characters(result.data)
