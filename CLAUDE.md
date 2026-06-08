@@ -1,10 +1,10 @@
 # super-battle-api
 
-FastAPI backend for SuperBattle — DC character battle story generator. Currently in **stub mode**: all endpoints return realistic hardcoded data. The integration phase wires in Supabase (character data) and Groq (AI story narration).
+FastAPI backend for SuperBattle — comic book character battle story generator. **Integration complete**: all endpoints talk to real Supabase (character data + battle cache) and real Groq (AI story narration).
 
-## Status: Stub complete, integration phase next
+## Status: Integration complete — seed in progress
 
-All 4 endpoints work and return realistic stub data. 33 pytest tests pass. Ready to wire real data sources.
+All 5 endpoints wired to real services. 50 pytest tests pass. Supabase DB has ~121 characters seeded so far (DC + Marvel with Comic Vine descriptions). Seed needs 2 more runs (1 hour apart, 190 characters each) to finish.
 
 ## Run locally
 
@@ -21,11 +21,28 @@ venv\Scripts\activate
 pytest
 ```
 
+## Seed the database
+
+```powershell
+venv\Scripts\activate
+
+# First run / resume (safe to re-run — skips already-seeded characters)
+python seed.py --limit 190
+
+# Wipe everything and start fresh
+python seed.py --reset --limit 190
+```
+
+- Characters **without** a Comic Vine description are skipped entirely (not stored in DB)
+- `--limit 190` stays under Comic Vine's 200 req/hour cap — run once per hour until "Done" prints
+- Current state: ~121 characters in DB, ~302 remaining across 2 more runs
+
 ## Tech stack
 
 - Python 3.11, FastAPI, Pydantic v2, pydantic-settings
+- supabase>=2.10.0, groq>=0.9.0, requests>=2.32.0
 - httpx2 (not httpx) — required by Starlette TestClient
-- pytest + FastAPI TestClient for all tests
+- pytest + pytest-mock + FastAPI TestClient for all tests
 - venv at `venv/` — always activate before running
 
 ## Endpoints
@@ -33,60 +50,68 @@ pytest
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/api/health` | `{"status": "ok"}` |
-| GET | `/api/characters/popular` | 4 stub DC characters |
-| GET | `/api/characters/search?q=` | filtered stub results |
-| POST | `/api/battle` | 8-sentence story, winner, scores, teams |
-| GET | `/api/stats` | `{"battles_cached": 2847, "characters_loaded": 203}` |
+| GET | `/api/characters/popular` | Top 20 by combined stats from Supabase |
+| GET | `/api/characters/search?q=` | Name search (ILIKE) from Supabase |
+| POST | `/api/battle` | 8-sentence Groq story, winner, scores, teams, cached flag |
+| GET | `/api/stats` | Real COUNT(*) from Supabase battles + characters tables |
 
 ## File structure
 
 ```
 app/
-  config.py          # pydantic-settings; reads .env
-  main.py            # FastAPI app factory, CORS, router registration
-  models.py          # Character, BattleRequest, BattleResponse, HealthResponse, StatsResponse
+  config.py              # pydantic-settings; reads .env
+  main.py                # FastAPI app factory, CORS, router registration
+  models.py              # Character (+ description field), BattleRequest, BattleResponse (+ cached field), HealthResponse, StatsResponse
   routers/
     health.py
-    characters.py
-    battle.py
-    stats.py         # GET /api/stats — hardcoded stub; real Supabase COUNT in integration phase
+    characters.py        # calls get_popular_characters() / search_characters()
+    battle.py            # calls get_characters_by_ids() + run_battle()
+    stats.py             # real Supabase COUNT queries; returns 0,0 if no client
   services/
-    characters.py    # STUB_CHARACTERS list (4 DC chars with real stat values)
-    battle.py        # compute_score(), make_matchup_key(), run_battle_stub()
-    supabase.py      # returns None until credentials set (stub guard)
-conftest.py          # pytest fixture: TestClient at repo root (not tests/)
-tests/               # 33 tests across 7 files
-  test_stats.py      # 3 tests: 200, required int fields, positive values
-seed.py              # stub seed script (no-op until integration phase)
+    supabase.py          # module-level singleton; returns None if no credentials
+    characters.py        # rows_to_characters(), get_popular_characters(), search_characters(), get_characters_by_ids()
+    battle.py            # compute_score(), make_matchup_key(), run_battle() — cache check + Groq + cache write
+    groq_service.py      # generate_battle_story(team_a, team_b) → list[str] via llama-3.3-70b-versatile
+migration.sql            # Run once in Supabase SQL editor — creates characters, battles tables + truncate_all()
+seed.py                  # Fetch SuperHero CDN → Comic Vine enrich → Supabase upsert; --reset, --limit flags
+conftest.py              # autouse mock_services fixture patches all routers; client fixture
+tests/                   # 50 tests across 11 files
 ```
 
 ## Key implementation details
 
-- `compute_score` uses `getattr()` on Pydantic models (not dict `.get()`)
-- `conftest.py` is at the **repo root**, not inside `tests/` — this is what puts `super-battle-api/` on sys.path
-- CORS `allow_origins` is read from `settings.frontend_url` (defaults to `http://localhost:3000`)
-- `run_battle_stub()` always returns Team A wins: Batman(335) + Superman(579) = 914 vs Joker(221) + Wonder Woman(528) = 749
-- Score = sum of all 6 stats (intelligence + strength + speed + durability + power + combat) per character
-- `GET /api/stats` returns hardcoded `battles_cached: 2847, characters_loaded: 203` — real Supabase COUNT queries in integration phase
+- `conftest.py` is at **repo root** (not `tests/`) — puts `super-battle-api/` on sys.path
+- `conftest.py` has an **autouse** `mock_services` fixture that patches all router-level service imports, keeping all 50 tests isolated from real Supabase/Groq calls
+- `rows_to_characters()` maps DB `description` → both `Character.description` and `Character.powers_text` (for backward compat)
+- `run_battle()` checks the `battles` table cache first by `matchup_key`; only calls Groq on cache miss
+- `make_matchup_key()` sorts both team ID lists so the same matchup always produces the same key regardless of team order
+- Supabase `id` column is `INTEGER`; `Character.id` is `str` — `get_characters_by_ids()` converts `[int(i) for i in ids]` before the `.in_()` query
+- Battle router returns HTTP 404 if any requested character ID is not found in DB
+- Groq model: `llama-3.3-70b-versatile`, max_tokens=600, temperature=0.8; pads to 8 sentences if response is short
+- Comic Vine: 200 req/hour limit; seed uses 1s delay + `--limit` flag; strips HTML from description; truncates to 500 chars
 
 ## Environment variables (.env)
 
 ```
-SUPERHERO_API_KEY=
-COMICVINE_API_KEY=
-GROQ_API_KEY=
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
+SUPERHERO_API_KEY=       # not used at runtime — seed.py uses CDN (no key needed)
+COMICVINE_API_KEY=       # seed.py only
+GROQ_API_KEY=            # required at runtime for battle narration
+SUPABASE_URL=            # required at runtime
+SUPABASE_ANON_KEY=       # required at runtime (publishable key, not secret)
 FRONTEND_URL=http://localhost:3000
 ```
 
-All optional in stub mode. Copy `.env.example` to `.env` to start.
+## Database schema (Supabase)
 
-## Integration phase (next steps)
+**characters** — `id INTEGER PK, name, publisher, alignment, intelligence, strength, speed, durability, power, combat, image_url, description, updated_at`
 
-1. **Supabase**: uncomment `create_client` in `services/supabase.py`, add `supabase>=2.10.0` to requirements.txt, run `seed.py` to populate `characters` table
-2. **Characters endpoints**: replace `STUB_CHARACTERS` with Supabase queries in `routers/characters.py`
-3. **Battle endpoint**: replace `run_battle_stub()` with real logic — query Supabase for characters by ID, call Groq for 8-sentence story, cache result in Supabase by `make_matchup_key()`
-4. **Groq**: add story narration using `groq` SDK (already in `GROQ_API_KEY` setting)
-5. **Stats endpoint**: replace hardcoded values in `routers/stats.py` with real `SELECT COUNT(*)` queries against Supabase `battles` and `characters` tables
-6. **Docker**: test `docker build` on server — Dockerfile is written but not tested locally
+**battles** — `matchup_key TEXT PK, story JSONB, winner, score_a, score_b, created_at`
+
+**truncate_all()** — RPC function; called by `seed.py --reset` to wipe all rows without dropping schema
+
+## What's next
+
+1. **Finish seed** — run `python seed.py --limit 190` once per hour for 2 more runs (~302 characters remaining)
+2. **Manual API validation** — start server, hit `/api/characters/popular`, run a real battle via POST, check `/api/stats` for live counts
+3. **Frontend visual QA** — start both servers, test the full battle flow in browser
+4. **Docker deploy** — Dockerfile exists but not yet tested; deploy to server
