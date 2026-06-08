@@ -3,9 +3,14 @@ from app.services.supabase import get_supabase_client
 from app.services.groq_service import generate_battle_story
 
 
+TEAM_MULTIPLIERS = {1: 1.0, 2: 0.6, 3: 0.5}
+
+
 def compute_score(characters: list[Character]) -> int:
     stats = ["intelligence", "strength", "speed", "durability", "power", "combat"]
-    return sum(getattr(c, s, 0) or 0 for c in characters for s in stats)
+    raw = sum(getattr(c, s, 0) or 0 for c in characters for s in stats)
+    multiplier = TEAM_MULTIPLIERS.get(len(characters), 0.5)
+    return round(raw * multiplier)
 
 
 def make_matchup_key(a_ids: list[str], b_ids: list[str]) -> str:

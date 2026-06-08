@@ -25,7 +25,7 @@ def test_compute_score_multiple_characters():
                durability=10, power=10, combat=10)
     c2 = _char(intelligence=20, strength=20, speed=20,
                durability=20, power=20, combat=20)
-    assert compute_score([c1, c2]) == 60 + 120
+    assert compute_score([c1, c2]) == 108  # raw 180 × 0.6
 
 
 def test_compute_score_empty_list():
@@ -54,3 +54,27 @@ def test_matchup_key_sorts_ids_within_team():
 def test_matchup_key_format():
     key = make_matchup_key(["70"], ["370"])
     assert "_vs_" in key
+
+
+def test_compute_score_1char_multiplier_is_1():
+    char = _char(intelligence=10, strength=10, speed=10,
+                 durability=10, power=10, combat=10)
+    assert compute_score([char]) == 60  # raw 60 × 1.0
+
+
+def test_compute_score_2char_multiplier_is_0_6():
+    c1 = _char(intelligence=10, strength=10, speed=10,
+               durability=10, power=10, combat=10)
+    c2 = _char(id="2", intelligence=10, strength=10, speed=10,
+               durability=10, power=10, combat=10)
+    assert compute_score([c1, c2]) == 72  # raw 120 × 0.6
+
+
+def test_compute_score_3char_multiplier_is_0_5():
+    c1 = _char(intelligence=10, strength=10, speed=10,
+               durability=10, power=10, combat=10)
+    c2 = _char(id="2", intelligence=10, strength=10, speed=10,
+               durability=10, power=10, combat=10)
+    c3 = _char(id="3", intelligence=10, strength=10, speed=10,
+               durability=10, power=10, combat=10)
+    assert compute_score([c1, c2, c3]) == 90  # raw 180 × 0.5
