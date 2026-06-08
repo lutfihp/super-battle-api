@@ -71,6 +71,9 @@ def mock_services(mocker):
         "app.routers.battle.run_battle",
         return_value=STUB_BATTLE,
     )
+    stats_db = mocker.MagicMock()
+    stats_db.table.return_value.select.return_value.execute.return_value.count = 4
+    mocker.patch("app.routers.stats.get_supabase_client", return_value=stats_db)
 
 
 @pytest.fixture
