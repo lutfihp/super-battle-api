@@ -4,7 +4,7 @@ FastAPI backend for SuperBattle — comic book character battle story generator.
 
 ## Status: Integration complete — seed in progress
 
-All 5 endpoints wired to real services. 50 pytest tests pass. Supabase DB has ~121 characters seeded so far (DC + Marvel with Comic Vine descriptions). Seed needs 2 more runs (1 hour apart, 190 characters each) to finish.
+All 5 endpoints wired to real services. 53 pytest tests pass. Supabase DB has ~121 characters seeded so far (DC + Marvel with Comic Vine descriptions). Seed needs 2 more runs (1 hour apart, 190 characters each) to finish.
 
 ## Run locally
 
@@ -70,12 +70,12 @@ app/
   services/
     supabase.py          # module-level singleton; returns None if no credentials
     characters.py        # rows_to_characters(), get_popular_characters(), search_characters(), get_characters_by_ids()
-    battle.py            # compute_score(), make_matchup_key(), run_battle() — cache check + Groq + cache write
+    battle.py            # TEAM_MULTIPLIERS, compute_score(), make_matchup_key(), run_battle() — cache check + Groq + cache write
     groq_service.py      # generate_battle_story(team_a, team_b) → list[str] via llama-3.3-70b-versatile
 migration.sql            # Run once in Supabase SQL editor — creates characters, battles tables + truncate_all()
 seed.py                  # Fetch SuperHero CDN → Comic Vine enrich → Supabase upsert; --reset, --limit flags
 conftest.py              # autouse mock_services fixture patches all routers; client fixture
-tests/                   # 50 tests across 11 files
+tests/                   # 53 tests across 11 files
 ```
 
 ## Key implementation details
@@ -83,6 +83,7 @@ tests/                   # 50 tests across 11 files
 - `conftest.py` is at **repo root** (not `tests/`) — puts `super-battle-api/` on sys.path
 - `conftest.py` has an **autouse** `mock_services` fixture that patches all router-level service imports, keeping all 50 tests isolated from real Supabase/Groq calls
 - `rows_to_characters()` maps DB `description` → both `Character.description` and `Character.powers_text` (for backward compat)
+- `compute_score()` applies `TEAM_MULTIPLIERS = {1: 1.0, 2: 0.6, 3: 0.5}` — raw stat sum × multiplier, rounded to int. Winner is determined from multiplied scores.
 - `run_battle()` checks the `battles` table cache first by `matchup_key`; only calls Groq on cache miss
 - `make_matchup_key()` sorts both team ID lists so the same matchup always produces the same key regardless of team order
 - Supabase `id` column is `INTEGER`; `Character.id` is `str` — `get_characters_by_ids()` converts `[int(i) for i in ids]` before the `.in_()` query
@@ -115,3 +116,7 @@ FRONTEND_URL=http://localhost:3000
 2. **Manual API validation** — start server, hit `/api/characters/popular`, run a real battle via POST, check `/api/stats` for live counts
 3. **Frontend visual QA** — start both servers, test the full battle flow in browser
 4. **Docker deploy** — Dockerfile exists but not yet tested; deploy to server
+
+## Cache migration note
+
+The `battles` table was cleared (2026-06-08) when team-size multipliers were introduced. Any future change to `compute_score()` logic should also clear the `battles` table — use `DELETE FROM battles;` in Supabase SQL editor (NOT `truncate_all()`, which also wipes characters).
