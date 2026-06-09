@@ -1,7 +1,12 @@
-venv/
 .env
+venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
-.gitignore
+tests/
+.git/
+docs/
+handoffs/
+*.md
