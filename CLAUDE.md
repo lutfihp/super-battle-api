@@ -2,9 +2,9 @@
 
 FastAPI backend for SuperBattle — comic book character battle story generator. **Integration complete**: all endpoints talk to real Supabase (character data + battle cache) and real Groq (AI story narration).
 
-## Status: Integration complete — seed in progress
+## Status: Integration complete — seed complete
 
-All 5 endpoints wired to real services. 53 pytest tests pass. Supabase DB has ~121 characters seeded so far (DC + Marvel with Comic Vine descriptions). Seed needs 2 more runs (1 hour apart, 190 characters each) to finish.
+All 5 endpoints wired to real services. 53 pytest tests pass. Supabase DB has **386 characters** seeded (DC Comics + Marvel Comics, both enriched with Comic Vine descriptions). Seeding is done.
 
 ## Run locally
 
@@ -26,7 +26,7 @@ pytest
 ```powershell
 venv\Scripts\activate
 
-# First run / resume (safe to re-run — skips already-seeded characters)
+# Resume / re-run safely (skips already-seeded characters)
 python seed.py --limit 190
 
 # Wipe everything and start fresh
@@ -34,8 +34,8 @@ python seed.py --reset --limit 190
 ```
 
 - Characters **without** a Comic Vine description are skipped entirely (not stored in DB)
-- `--limit 190` stays under Comic Vine's 200 req/hour cap — run once per hour until "Done" prints
-- Current state: ~121 characters in DB, ~302 remaining across 2 more runs
+- `--limit 190` stays under Comic Vine's 200 req/hour cap
+- **Current state: 386 characters in DB — seeding complete**
 
 ## Tech stack
 
@@ -113,10 +113,9 @@ FRONTEND_URL=http://localhost:3000
 
 ## What's next
 
-1. **Finish seed** — run `python seed.py --limit 190` once per hour for 2 more runs (~302 characters remaining)
-2. **Push to origin** — `git push origin main` triggers first GitHub Actions deploy (after VPS setup done)
-3. **Follow DEPLOY.md** — DNS → VPS dirs → .env files → nginx → SSL → GitHub Secrets → first deploy
-4. **Manual API validation** — hit `/api/characters/popular`, run a real battle via POST, check `/api/stats`
+1. **Push to origin** — `git push origin main` triggers first GitHub Actions deploy (after VPS setup done)
+2. **Follow DEPLOY.md** — DNS → VPS dirs → .env files → nginx → SSL → GitHub Secrets → first deploy
+3. **Manual API validation** — hit `/api/characters/popular`, run a real battle via POST, check `/api/stats`
 
 ## Cache migration note
 
