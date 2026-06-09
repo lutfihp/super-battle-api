@@ -110,12 +110,13 @@ FRONTEND_URL=http://localhost:3000
 
 **truncate_all()** — RPC function; called by `seed.py --reset` to wipe all rows without dropping schema
 
+
 ## What's next
 
 1. **Finish seed** — run `python seed.py --limit 190` once per hour for 2 more runs (~302 characters remaining)
-2. **Manual API validation** — start server, hit `/api/characters/popular`, run a real battle via POST, check `/api/stats` for live counts
-3. **Frontend visual QA** — start both servers, test the full battle flow in browser
-4. **Docker deploy** — Dockerfile exists but not yet tested; deploy to server
+2. **Push to origin** — `git push origin main` triggers first GitHub Actions deploy (after VPS setup done)
+3. **Follow DEPLOY.md** — DNS → VPS dirs → .env files → nginx → SSL → GitHub Secrets → first deploy
+4. **Manual API validation** — hit `/api/characters/popular`, run a real battle via POST, check `/api/stats`
 
 ## Cache migration note
 
