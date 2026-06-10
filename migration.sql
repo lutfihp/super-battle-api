@@ -33,3 +33,14 @@ BEGIN
   TRUNCATE characters, battles CASCADE;
 END;
 $$;
+
+-- Enable RLS — blocks all direct public writes via the anon key.
+ALTER TABLE characters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE battles    ENABLE ROW LEVEL SECURITY;
+
+-- Allow public reads (data is not sensitive; blocks INSERT/UPDATE/DELETE via anon).
+CREATE POLICY "anon_select_characters" ON characters
+  FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon_select_battles" ON battles
+  FOR SELECT TO anon USING (true);
