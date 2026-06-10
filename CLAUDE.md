@@ -2,7 +2,7 @@
 
 FastAPI backend for SuperBattle — comic book character battle story generator. **Integration complete**: all endpoints talk to real Supabase (character data + battle cache) and real Groq (AI story narration).
 
-## Status: Integration complete — seed complete
+## Status: Integration complete — seed complete — RLS enabled — deployed
 
 All 5 endpoints wired to real services. 53 pytest tests pass. Supabase DB has **386 characters** seeded (DC Comics + Marvel Comics, both enriched with Comic Vine descriptions). Seeding is done.
 
@@ -98,7 +98,8 @@ SUPERHERO_API_KEY=       # not used at runtime — seed.py uses CDN (no key need
 COMICVINE_API_KEY=       # seed.py only
 GROQ_API_KEY=            # required at runtime for battle narration
 SUPABASE_URL=            # required at runtime
-SUPABASE_ANON_KEY=       # required at runtime (publishable key, not secret)
+SUPABASE_ANON_KEY=       # publishable key — used as fallback if SERVICE_KEY not set
+SUPABASE_SERVICE_KEY=    # required at runtime — service_role key (bypasses RLS); find in Supabase → Project Settings → API
 FRONTEND_URL=http://localhost:3000
 ```
 
@@ -110,12 +111,21 @@ FRONTEND_URL=http://localhost:3000
 
 **truncate_all()** — RPC function; called by `seed.py --reset` to wipe all rows without dropping schema
 
+## Security — RLS (enabled 2026-06-10)
+
+Both tables have Row-Level Security enabled. Applied via Supabase SQL editor:
+- `ALTER TABLE characters ENABLE ROW LEVEL SECURITY;`
+- `ALTER TABLE battles ENABLE ROW LEVEL SECURITY;`
+- Anon `SELECT` policy on both tables (data is public, reads still work with anon key)
+- No anon INSERT/UPDATE/DELETE — blocked
+- Backend uses `SUPABASE_SERVICE_KEY` (service_role key) so writes (battle cache inserts, seeding) bypass RLS and continue to work
+
+`supabase.py` prefers `SUPABASE_SERVICE_KEY`; falls back to `SUPABASE_ANON_KEY` if not set.
 
 ## What's next
 
-1. **Push to origin** — `git push origin main` triggers first GitHub Actions deploy (after VPS setup done)
-2. **Follow DEPLOY.md** — DNS → VPS dirs → .env files → nginx → SSL → GitHub Secrets → first deploy
-3. **Manual API validation** — hit `/api/characters/popular`, run a real battle via POST, check `/api/stats`
+1. **Smoke test production** — `curl https://superbattle-api.codading.site/api/characters/popular` and run a POST /api/battle to confirm writes still work
+2. **Visual QA** — full battle flow on production via the frontend
 
 ## Cache migration note
 
