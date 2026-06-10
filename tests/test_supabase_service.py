@@ -14,12 +14,13 @@ def test_returns_client_with_credentials(mocker):
     mocker.patch.object(svc, "_client", None)
     mocker.patch("app.services.supabase.get_settings", return_value=mocker.MagicMock(
         supabase_url="https://test.supabase.co",
-        supabase_anon_key="test-key",
+        supabase_service_key="test-service-key",
+        supabase_anon_key="test-anon-key",
     ))
     mock_create = mocker.patch("app.services.supabase.create_client", return_value="mock-client")
     result = svc.get_supabase_client()
     assert result == "mock-client"
-    mock_create.assert_called_once_with("https://test.supabase.co", "test-key")
+    mock_create.assert_called_once_with("https://test.supabase.co", "test-service-key")
 
 
 def test_singleton_not_recreated(mocker):
