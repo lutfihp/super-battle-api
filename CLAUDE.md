@@ -129,7 +129,7 @@ Both tables have Row-Level Security enabled. Applied via Supabase SQL editor:
 
 ## What's next
 
-Nothing blocking. Fireworks swap is deployed, VPS env is updated, cache is cleared, live battles work end-to-end with winner-aligned narratives.
+Nothing blocking. Fireworks swap is deployed, VPS env is updated, cache is cleared, live battles work end-to-end with winner-aligned narratives. Frontend `/how-it-works` copy is in sync (commit `be1d1b0` in `super-battle-app`, 2026-07-20) — architecture diagram, prompt inspector, cache-miss latency, and stack card all reflect Fireworks / gpt-oss-120b.
 
 Optional follow-ups:
 1. **Visual QA** — spot-check a handful of matchups on `superbattle.codading.site` to make sure narratives read well across weight classes (David-vs-Goliath, 1v3, etc.). Confirm sentence 7 always aligns with the displayed winner.
