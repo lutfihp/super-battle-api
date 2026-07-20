@@ -124,9 +124,24 @@ Both tables have Row-Level Security enabled. Applied via Supabase SQL editor:
 
 ## What's next
 
-1. **Smoke test production** — `curl https://superbattle-api.codading.site/api/characters/popular` and run a POST /api/battle to confirm writes still work
-2. **Visual QA** — full battle flow on production via the frontend
+1. **⚠️ Update VPS `.env`** at `/home/mutawazin/superbattle-api` — replace `GROQ_API_KEY=…` with `FIREWORKS_API_KEY=fw_PSufYzTre8kdysHjh3VCfp` (see local `.env` for the value). Until this is done, prod `/api/battle` will 500 on any cache miss because `settings.fireworks_api_key` is empty. The commit `9f542ee` may have already auto-deployed.
+2. **Smoke test production** — `curl https://superbattle-api.codading.site/api/characters/popular` (should work regardless), then POST /api/battle with two character IDs and confirm you get an 8-sentence story back (proves Fireworks call + cache insert both work).
+3. **Visual QA** — full battle flow on production via the frontend
 
 ## Cache migration note
 
-The `battles` table was cleared (2026-06-08) when team-size multipliers were introduced. Any future change to `compute_score()` logic should also clear the `battles` table — use `DELETE FROM battles;` in Supabase SQL editor (NOT `truncate_all()`, which also wipes characters).
+The `battles` table has been cleared twice:
+- **2026-06-08** — when team-size multipliers were introduced
+- **2026-07-20** — when the LLM was swapped from Groq llama-3.3-70b to Fireworks gpt-oss-120b (existing cache entries had Groq-flavored prose; wiped so all future battles use the new model)
+
+Any future change to `compute_score()` logic OR the LLM model should also clear the `battles` table — use `DELETE FROM battles;` in Supabase SQL editor (NOT `truncate_all()`, which also wipes characters).
+
+## LLM swap history (2026-07-20)
+
+Switched narration provider from **Groq → Fireworks AI**:
+- **Was:** `groq` SDK, model `llama-3.3-70b-versatile`, in `app/services/groq_service.py`
+- **Now:** `openai` SDK with `base_url=https://api.fireworks.ai/inference/v1`, model `accounts/fireworks/models/gpt-oss-120b`, in `app/services/fireworks_service.py`
+- **Why:** ~10× cheaper (~$0.15 in / $0.60 out per 1M tokens vs. other Fireworks options), prepaid Fireworks credit, comparable output quality for 8-sentence action narration
+- **Env var renamed:** `GROQ_API_KEY` → `FIREWORKS_API_KEY`
+- **Test isolation:** `tests/test_fireworks_service.py` patches `app.services.fireworks_service.OpenAI` (not `Groq`) — keep this in mind if writing new tests
+- Committed as `9f542ee`

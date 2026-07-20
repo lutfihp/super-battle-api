@@ -1,3 +1,5 @@
+import re
+
 from openai import OpenAI
 from app.config import get_settings
 from app.models import Character
@@ -5,6 +7,7 @@ from app.models import Character
 _FILLER = "The battle rages on with neither side yielding."
 _MODEL = "accounts/fireworks/models/gpt-oss-120b"
 _BASE_URL = "https://api.fireworks.ai/inference/v1"
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def _format_team(team: list[Character]) -> str:
@@ -45,7 +48,8 @@ Return only the 8 sentences, nothing else."""
     )
 
     text = response.choices[0].message.content.strip()
-    sentences = [s.strip() for s in text.split("\n") if s.strip()]
+    flat = " ".join(line.strip() for line in text.splitlines() if line.strip())
+    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(flat) if s.strip()]
     while len(sentences) < 8:
         sentences.append(_FILLER)
     return sentences[:8]

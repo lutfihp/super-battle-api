@@ -41,3 +41,19 @@ def test_generate_battle_story_trims_long_response(mocker):
     from app.services.fireworks_service import generate_battle_story
     result = generate_battle_story([_char()], [_char()])
     assert len(result) == 8
+
+
+def test_generate_battle_story_splits_single_paragraph(mocker):
+    # gpt-oss-120b often returns all sentences as one paragraph, no newlines.
+    # The parser must sentence-split on punctuation, not just newlines.
+    paragraph = " ".join(f"Sentence number {i}." for i in range(1, 9))
+    _mock_client(mocker, paragraph)
+    from app.services.fireworks_service import generate_battle_story
+    result = generate_battle_story([_char()], [_char()])
+    assert len(result) == 8
+    assert result[0] == "Sentence number 1."
+    assert result[7] == "Sentence number 8."
+    assert _FILLER_UNUSED not in result
+
+
+_FILLER_UNUSED = "The battle rages on with neither side yielding."
