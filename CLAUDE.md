@@ -70,7 +70,7 @@ app/
   services/
     supabase.py          # module-level singleton; returns None if no credentials
     characters.py        # rows_to_characters(), get_popular_characters(), search_characters(), get_characters_by_ids()
-    battle.py            # TEAM_MULTIPLIERS, compute_score(), make_matchup_key(), run_battle() — cache check + Groq + cache write
+    battle.py            # TEAM_MULTIPLIERS, compute_score(), make_matchup_key(), run_battle() — cache check + Fireworks + cache write
     fireworks_service.py # generate_battle_story(team_a, team_b) → list[str] via Fireworks gpt-oss-120b (OpenAI SDK, base_url=https://api.fireworks.ai/inference/v1)
 migration.sql            # Run once in Supabase SQL editor — creates characters, battles tables + truncate_all()
 seed.py                  # Fetch SuperHero CDN → Comic Vine enrich → Supabase upsert; --reset, --limit flags
