@@ -1,6 +1,6 @@
 from app.models import Character, BattleResponse
 from app.services.supabase import get_supabase_client
-from app.services.groq_service import generate_battle_story
+from app.services.fireworks_service import generate_battle_story
 
 
 TEAM_MULTIPLIERS = {1: 1.0, 2: 0.6, 3: 0.5}

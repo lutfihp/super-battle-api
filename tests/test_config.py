@@ -6,7 +6,7 @@ def test_settings_has_correct_defaults():
     settings = Settings(_env_file=None)
     assert settings.frontend_url == "http://localhost:3000"
     assert settings.superhero_api_key == ""
-    assert settings.groq_api_key == ""
+    assert settings.fireworks_api_key == ""
     assert settings.supabase_url == ""
     assert settings.supabase_anon_key == ""
     assert settings.comicvine_api_key == ""

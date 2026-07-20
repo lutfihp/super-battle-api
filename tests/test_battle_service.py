@@ -41,11 +41,11 @@ def test_run_battle_returns_cached_result(mocker):
         "score_b": 80,
     }
     mocker.patch("app.services.battle.get_supabase_client", return_value=_make_battles_db(cached))
-    mock_groq = mocker.patch("app.services.battle.generate_battle_story")
+    mock_llm = mocker.patch("app.services.battle.generate_battle_story")
     from app.services.battle import run_battle
     result = run_battle([_char("1", "Hero")], [_char("2", "Villain")])
     assert result.cached is True
-    mock_groq.assert_not_called()
+    mock_llm.assert_not_called()
 
 
 def test_run_battle_writes_to_cache(mocker):

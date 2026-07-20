@@ -1,6 +1,6 @@
 # super-battle-api
 
-FastAPI backend for SuperBattle — comic book character battle story generator. **Integration complete**: all endpoints talk to real Supabase (character data + battle cache) and real Groq (AI story narration).
+FastAPI backend for SuperBattle — comic book character battle story generator. **Integration complete**: all endpoints talk to real Supabase (character data + battle cache) and real Fireworks AI (story narration via `gpt-oss-120b`).
 
 ## Status: Integration complete — seed complete — RLS enabled — deployed
 
@@ -40,7 +40,7 @@ python seed.py --reset --limit 190
 ## Tech stack
 
 - Python 3.11, FastAPI, Pydantic v2, pydantic-settings
-- supabase>=2.10.0, groq>=0.9.0, requests>=2.32.0
+- supabase>=2.10.0, openai>=1.50.0 (Fireworks OpenAI-compatible endpoint), requests>=2.32.0
 - httpx2 (not httpx) — required by Starlette TestClient
 - pytest + pytest-mock + FastAPI TestClient for all tests
 - venv at `venv/` — always activate before running
@@ -52,7 +52,7 @@ python seed.py --reset --limit 190
 | GET | `/api/health` | `{"status": "ok"}` |
 | GET | `/api/characters/popular` | Top 20 by combined stats from Supabase |
 | GET | `/api/characters/search?q=` | Name search (ILIKE) from Supabase |
-| POST | `/api/battle` | 8-sentence Groq story, winner, scores, teams, cached flag |
+| POST | `/api/battle` | 8-sentence Fireworks story, winner, scores, teams, cached flag |
 | GET | `/api/stats` | Real COUNT(*) from Supabase battles + characters tables |
 
 ## File structure
@@ -71,7 +71,7 @@ app/
     supabase.py          # module-level singleton; returns None if no credentials
     characters.py        # rows_to_characters(), get_popular_characters(), search_characters(), get_characters_by_ids()
     battle.py            # TEAM_MULTIPLIERS, compute_score(), make_matchup_key(), run_battle() — cache check + Groq + cache write
-    groq_service.py      # generate_battle_story(team_a, team_b) → list[str] via llama-3.3-70b-versatile
+    fireworks_service.py # generate_battle_story(team_a, team_b) → list[str] via Fireworks gpt-oss-120b (OpenAI SDK, base_url=https://api.fireworks.ai/inference/v1)
 migration.sql            # Run once in Supabase SQL editor — creates characters, battles tables + truncate_all()
 seed.py                  # Fetch SuperHero CDN → Comic Vine enrich → Supabase upsert; --reset, --limit flags
 conftest.py              # autouse mock_services fixture patches all routers; client fixture
@@ -81,14 +81,14 @@ tests/                   # 53 tests across 11 files
 ## Key implementation details
 
 - `conftest.py` is at **repo root** (not `tests/`) — puts `super-battle-api/` on sys.path
-- `conftest.py` has an **autouse** `mock_services` fixture that patches all router-level service imports, keeping all 50 tests isolated from real Supabase/Groq calls
+- `conftest.py` has an **autouse** `mock_services` fixture that patches all router-level service imports, keeping all 50 tests isolated from real Supabase/Fireworks calls
 - `rows_to_characters()` maps DB `description` → both `Character.description` and `Character.powers_text` (for backward compat)
 - `compute_score()` applies `TEAM_MULTIPLIERS = {1: 1.0, 2: 0.6, 3: 0.5}` — raw stat sum × multiplier, rounded to int. Winner is determined from multiplied scores.
-- `run_battle()` checks the `battles` table cache first by `matchup_key`; only calls Groq on cache miss
+- `run_battle()` checks the `battles` table cache first by `matchup_key`; only calls Fireworks on cache miss
 - `make_matchup_key()` sorts both team ID lists so the same matchup always produces the same key regardless of team order
 - Supabase `id` column is `INTEGER`; `Character.id` is `str` — `get_characters_by_ids()` converts `[int(i) for i in ids]` before the `.in_()` query
 - Battle router returns HTTP 404 if any requested character ID is not found in DB
-- Groq model: `llama-3.3-70b-versatile`, max_tokens=600, temperature=0.8; pads to 8 sentences if response is short
+- LLM: `accounts/fireworks/models/gpt-oss-120b` on Fireworks serverless (~$0.15 in / $0.60 out per 1M tokens), max_tokens=600, temperature=0.8; pads to 8 sentences if response is short
 - Comic Vine: 200 req/hour limit; seed uses 1s delay + `--limit` flag; strips HTML from description; truncates to 500 chars
 
 ## Environment variables (.env)
@@ -96,7 +96,7 @@ tests/                   # 53 tests across 11 files
 ```
 SUPERHERO_API_KEY=       # not used at runtime — seed.py uses CDN (no key needed)
 COMICVINE_API_KEY=       # seed.py only
-GROQ_API_KEY=            # required at runtime for battle narration
+FIREWORKS_API_KEY=       # required at runtime for battle narration (Fireworks AI serverless)
 SUPABASE_URL=            # required at runtime
 SUPABASE_ANON_KEY=       # publishable key — used as fallback if SERVICE_KEY not set
 SUPABASE_SERVICE_KEY=    # required at runtime — service_role key (bypasses RLS); find in Supabase → Project Settings → API

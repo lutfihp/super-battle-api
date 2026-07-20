@@ -1,8 +1,10 @@
-from groq import Groq
+from openai import OpenAI
 from app.config import get_settings
 from app.models import Character
 
 _FILLER = "The battle rages on with neither side yielding."
+_MODEL = "accounts/fireworks/models/gpt-oss-120b"
+_BASE_URL = "https://api.fireworks.ai/inference/v1"
 
 
 def _format_team(team: list[Character]) -> str:
@@ -22,7 +24,7 @@ def generate_battle_story(
     team_a: list[Character], team_b: list[Character]
 ) -> list[str]:
     settings = get_settings()
-    client = Groq(api_key=settings.groq_api_key)
+    client = OpenAI(api_key=settings.fireworks_api_key, base_url=_BASE_URL)
 
     prompt = f"""You are a battle narrator. Two teams of comic book heroes/villains are fighting.
 
@@ -36,7 +38,7 @@ Write exactly 8 sentences narrating the battle. Each sentence on its own line.
 Return only the 8 sentences, nothing else."""
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=_MODEL,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=600,
         temperature=0.8,

@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     superhero_api_key: str = ""
     comicvine_api_key: str = ""
-    groq_api_key: str = ""
+    fireworks_api_key: str = ""
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
