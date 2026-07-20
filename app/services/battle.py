@@ -40,10 +40,10 @@ def run_battle(
                 cached=True,
             )
 
-    story = generate_battle_story(team_a, team_b)
     score_a = compute_score(team_a)
     score_b = compute_score(team_b)
     winner = "A" if score_a >= score_b else "B"
+    story = generate_battle_story(team_a, team_b, winner)
 
     if db is not None:
         db.table("battles").insert({
